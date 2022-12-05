@@ -52,4 +52,16 @@ Verify entry in the AWS auth map
 kubectl describe configmap -n kube-system aws-auth
 ```
 
+Helm
+```
+curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+```
+```
+helm version --short
+```
+```
+helm list
+```
+
+
 
