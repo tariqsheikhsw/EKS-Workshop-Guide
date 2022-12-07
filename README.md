@@ -302,6 +302,56 @@ kubectl get ingress -n workshop
 kubectl describe ingress workshopingress -n workshop
 ```
 
+Deployment/Service
+
+```
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontendnew
+  namespace: workshop
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontendnew
+  template:
+    metadata:
+      labels:
+        app: frontendnew
+    spec:
+      containers:
+      - image: public.ecr.aws/u2g6w7p2/eks-workshop-demo/simplewebserver:1.0
+        name: simplewebserver
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontendnew
+  namespace: workshop
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80 
+      name: http 
+  selector:
+    app: frontendnew
+EOF
+```
+```
+kubectl get svc,deployment -n workshop
+```
+```
+kubectl get pods -n workshop --selector app=frontendnew -o wide
+```
+```
+kubectl describe service frontendnew -n workshop
+```
+```
+kubectl describe ingress workshopingress -n workshop
+```
+
 
 
 
