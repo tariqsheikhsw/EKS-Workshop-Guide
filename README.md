@@ -163,6 +163,11 @@ cd ~/environment/eks-app-mesh-polyglot-demo
 helm upgrade --reuse-values -f ~/environment/eks-app-mesh-polyglot-demo/workshop/helm-chart/values-efs.yaml workshop workshop/helm-chart/
 ```
 
+Revert back 
+```
+helm upgrade --reuse-values -f ~/environment/eks-app-mesh-polyglot-demo/workshop/helm-chart/values.yaml workshop workshop/helm-chart/
+```
+
 ```
 export PROD_CATALOG=$(kubectl get pods -n workshop -l app=prodcatalog -o jsonpath='{.items[].metadata.name}') 
 kubectl -n workshop describe pod  ${PROD_CATALOG}
