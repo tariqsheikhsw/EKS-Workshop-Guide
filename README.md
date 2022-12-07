@@ -197,7 +197,110 @@ kubectl -n workshop exec -it prodcatalog-xxx-nmzmd  -c prodcatalog -- /bin/bash
 ```
 
 
+Load Balancer Controller
+```
+eksctl utils associate-iam-oidc-provider \
+      --region us-west-2 \
+      --cluster eksworkshop-eksctl \
+      --approve
+```
+IAM Policy
+```
+curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.0/docs/install/iam_policy.json
+```
 
+```
+aws iam create-policy \
+      --policy-name AWSLoadBalancerControllerIAMPolicy \
+      --policy-document file://iam-policy.json
+```
+
+Service Account
+
+```
+eksctl create iamserviceaccount \
+--cluster=eksworkshop-eksctl \
+--namespace=kube-system \
+--name=aws-load-balancer-controller \
+--attach-policy-arn=arn:aws:iam::583497507745:policy/AWSLoadBalancerControllerIAMPolicy \
+--override-existing-serviceaccounts \
+--region us-west-2 \
+--approve
+```
+
+Deploy LB using Helm
+```
+curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
+helm repo add eks https://aws.github.io/eks-charts
+
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=eksworkshop-eksctl --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
+
+kubectl get pods -n kube-system
+
+```
+
+Ingress
+
+IngressClass
+
+```
+cat <<EOF | kubectl create -f -
+apiVersion: networking.k8s.io/v1
+kind: IngressClass 
+metadata:
+  name: aws-alb
+spec:
+  controller: ingress.k8s.aws/alb #Defines the controller name which implements this IngressClass. By default AWS Load Balancer Controller uses and checks this controller name. 
+EOF
+```
+
+```
+kubectl get ingressclass
+```
+
+Ingress
+```
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: workshop
+  name: workshopingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing #Places the load balancer on public subnets
+    alb.ingress.kubernetes.io/target-type: ip #The Pod IPs should be used as the target IPs (rather than the node IPs as was the case with NLB in hte previous section)
+    alb.ingress.kubernetes.io/group.name: product-catalog # Groups multiple Ingress resources
+spec:
+  ingressClassName: aws-alb #Defines which IngessClass that this Ingress is associated with. This specific Ingress Class is owned by  AWS Load Balancer Controller. Hence it will fulfill this Ingress.
+  rules:
+  - http:
+      paths:
+      - path: /new
+        pathType: Prefix
+        backend:
+          service:
+            name: frontendnew
+            port:
+               number: 80
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+EOF
+```
+```
+kubectl get ingress -n workshop
+```
+```
+kubectl describe ingress workshopingress -n workshop
+```
 
 
 
