@@ -403,6 +403,10 @@ kubectl apply -k .
 ```
 
 
+Reference:
+
+https://aws.amazon.com/blogs/storage/running-wordpress-on-amazon-eks-with-amazon-efs-intelligent-tiering/
+
 
 
 
