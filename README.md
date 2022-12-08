@@ -412,8 +412,20 @@ https://www.eksworkshop.com/intermediate/250_cloudwatch_container_insights/insta
 https://www.stacksimplify.com/aws-eks/kubernetes-storage/aws-eks-storage-with-aws-rds-database/
 
 
-RDS
+Create RDS DB 
 ```
+
+kubectl apply -f 01-MySQL-externalName-Service.yml
+
+kubectl run -it --rm --image=mysql:5.7.22 --restart=Never mysql-client -- mysql -h usermgmtdb.cbzqfdsbhxpu.us-west-2.rds.amazonaws.com -u dbadmin -pdbpassword11
+
+show schemas;
+create database usermgmt;
+show schemas;
+exit
+
+kubectl apply -f .
+
 
 ```
 https://www.stacksimplify.com/aws-eks/kubernetes-storage/aws-eks-storage-with-aws-rds-database/
