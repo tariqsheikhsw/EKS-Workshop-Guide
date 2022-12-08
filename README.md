@@ -654,6 +654,14 @@ export ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
 ```
 
 ```
+aws eks update-kubeconfig --name primary --region ${AWS_REGION_1}
+aws eks update-kubeconfig --name secondary --region ${AWS_REGION_2}
+```
+```
+kubectl get nodes 
+```
+
+```
 eksctl utils associate-iam-oidc-provider \
   --region $AWS_REGION_1 \
   --cluster $EKS_CLUSTER_1 \
@@ -665,5 +673,6 @@ eksctl utils associate-iam-oidc-provider \
   --cluster $EKS_CLUSTER_2 \
   --approve
 ```
+
 
 
