@@ -412,6 +412,11 @@ https://www.eksworkshop.com/intermediate/250_cloudwatch_container_insights/insta
 https://www.stacksimplify.com/aws-eks/kubernetes-storage/aws-eks-storage-with-aws-rds-database/
 
 
+RDS
+```
+
+```
+https://www.stacksimplify.com/aws-eks/kubernetes-storage/aws-eks-storage-with-aws-rds-database/
 
 
 
