@@ -407,7 +407,9 @@ Reference:
 
 https://aws.amazon.com/blogs/storage/running-wordpress-on-amazon-eks-with-amazon-efs-intelligent-tiering/
 
+https://www.eksworkshop.com/intermediate/250_cloudwatch_container_insights/installwordpress/
 
+https://www.stacksimplify.com/aws-eks/kubernetes-storage/aws-eks-storage-with-aws-rds-database/
 
 
 
