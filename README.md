@@ -638,5 +638,32 @@ kubectl apply -f client-pod.yaml
 kubectl get pod -o wide
 ```
 
+Primary Region/Cloud9 : us-west-2
+Two EKS clusters: us-west-2 , us-east-2
+ECR repository (votingapp) : us-west-2 , us-east-2
+DynamoDB global table (votingapp)
+
+EKS Cluster Names : primary, secondary
+```
+export AWS_REGION_1=us-west-2
+export AWS_REGION_2=us-east-2
+export EKS_CLUSTER_1=primary
+export EKS_CLUSTER_2=secondary
+export my_domain=cloud4life.io
+export ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+```
+
+```
+eksctl utils associate-iam-oidc-provider \
+  --region $AWS_REGION_1 \
+  --cluster $EKS_CLUSTER_1 \
+  --approve
+```
+```
+eksctl utils associate-iam-oidc-provider \
+  --region $AWS_REGION_2 \
+  --cluster $EKS_CLUSTER_2 \
+  --approve
+```
 
 
