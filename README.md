@@ -432,3 +432,211 @@ https://www.stacksimplify.com/aws-eks/kubernetes-storage/aws-eks-storage-with-aw
 
 
 
+WAF
+```
+WAF_AWS_REGION=us-west-2
+WAF_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+WAF_EKS_CLUSTER_NAME=eksworkshop-eksctl
+```
+
+```
+WAF_VPC_ID=$(aws eks describe-cluster \
+  --name $WAF_EKS_CLUSTER_NAME \
+  --region $WAF_AWS_REGION \
+  --query 'cluster.resourcesVpcConfig.vpcId' \
+  --output text)
+```
+
+```
+eksctl utils associate-iam-oidc-provider \
+  --cluster $WAF_EKS_CLUSTER_NAME \
+  --region $WAF_AWS_REGION \
+  --approve.
+```
+
+```
+curl -S https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.2.0/docs/install/iam_policy.json -o iam-policy.json 
+
+WAF_LBC_IAM_POLICY_ARN=$(aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy-WAFDEMO \
+  --policy-document file://iam-policy.json \
+  --query 'Policy.Arn' \
+  --output text)
+  
+eksctl create iamserviceaccount \
+  --cluster=$WAF_EKS_CLUSTER_NAME \
+  --region $WAF_AWS_REGION \
+  --namespace=kube-system \
+  --name=aws-load-balancer-controller \
+  --override-existing-serviceaccounts \
+  --attach-policy-arn=arn:aws:iam::${WAF_ACCOUNT_ID}:policy/AWSLoadBalancerControllerIAMPolicy-WAFDEMO \
+  --approve
+  
+helm repo add eks https://aws.github.io/eks-charts && helm repo update
+kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master"
+helm install aws-load-balancer-controller \
+  eks/aws-load-balancer-controller \
+  --namespace kube-system \
+  --set clusterName=$WAF_EKS_CLUSTER_NAME \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set vpcId=$WAF_VPC_ID \
+  --set region=$WAF_AWS_REGION
+```
+```
+git clone https://github.com/aws/aws-app-mesh-examples.git
+cd aws-app-mesh-examples/walkthroughs/eks-getting-started/
+kubectl apply -f infrastructure/yelb_initial_deployment.yaml
+```
+```
+cat << EOF > yelb-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: yelb.app
+  namespace: yelb
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yelb-ui
+                port:
+                  number: 80
+EOF
+kubectl apply -f yelb-ingress.yaml 
+```
+
+WireGuard / Cilium CNI (POD to POD encryption)
+
+https://aws.amazon.com/blogs/containers/transparent-encryption-of-node-to-node-traffic-on-amazon-eks-using-wireguard-and-cilium/
+
+```
+export AWS_REGION=us-west-2
+
+
+cat << EOF > clusterconfig.yaml
+---
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: wireguard-blog
+  region: $AWS_REGION
+
+iam:
+  withOIDC: true
+  
+addons:
+- name: vpc-cni
+
+nodeGroups:
+- name: bottlerocket
+  instanceType: t3.medium
+  desiredCapacity: 2
+  amiFamily: Bottlerocket
+  iam:
+    attachPolicyARNs:
+    - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+    - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+    - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+EOF
+ 
+eksctl create cluster -f clusterconfig.yaml
+```
+
+```
+helm repo add cilium https://helm.cilium.io/
+helm repo update
+```
+```
+helm install cilium cilium/cilium --version 1.12.2 \
+  --namespace kube-system \
+  --set cni.chainingMode=aws-cni \
+  --set enableIPv4Masquerade=false \
+  --set tunnel=disabled \
+  --set endpointRoutes.enabled=true \
+  --set encryption.enabled=true \
+  --set encryption.type=wireguard \
+  --set l7Proxy=false 
+```
+
+```
+kubectl -n kube-system exec -it ds/cilium -- cilium status | grep Encryption 
+```
+
+```
+cat << EOF > server-pod.yaml
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: server
+  labels:
+    blog: wireguard
+    name: server
+spec:
+  containers:
+    - name: server
+      image: nginx
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: "kubernetes.io/hostname"
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        blog: wireguard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+spec:
+  selector:
+    name: server
+  ports:
+  - port: 80
+EOF
+
+kubectl apply -f server-pod.yaml
+```
+
+```
+cat << EOF > client-pod.yaml
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  labels:
+    blog: wireguard
+    name: client
+spec:
+  containers:
+    - name: client
+      image: busybox
+      command: ["watch", "wget", "server"]
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: "kubernetes.io/hostname"
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        blog: wireguard
+EOF
+
+kubectl apply -f client-pod.yaml
+```
+```
+kubectl get pod -o wide
+```
+
+
+
