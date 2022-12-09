@@ -676,3 +676,14 @@ eksctl utils associate-iam-oidc-provider \
 
 
 
+Demonstrate Consolidation within EKS (Karpenter)
+https://www.youtube.com/watch?v=OB7IZolZk78
+
+```
+https://github.com/awslabs/eks-node-viewer
+```
+
+
+
+
+
