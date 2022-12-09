@@ -676,19 +676,74 @@ eksctl utils associate-iam-oidc-provider \
 
 
 
+Karpenter
+```
+https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/
+
+export KARPENTER_VERSION=v0.20.0
+
+export CLUSTER_NAME="eks-karpenter-demo"
+export AWS_DEFAULT_REGION="us-west-2"
+export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+
+echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID
+
+eksctl create cluster -f - << EOF
+---
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: ${CLUSTER_NAME}
+  region: ${AWS_DEFAULT_REGION}
+  version: "1.23"
+  tags:
+    karpenter.sh/discovery: ${CLUSTER_NAME}
+managedNodeGroups:
+  - instanceType: m5.large
+    amiFamily: AmazonLinux2
+    name: ${CLUSTER_NAME}-ng
+    desiredCapacity: 2
+    minSize: 1
+    maxSize: 10
+iam:
+  withOIDC: true
+EOF
+
+export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
+
+
+
+
+```
+
+
 Demonstrate Consolidation within EKS (Karpenter)
 https://www.youtube.com/watch?v=OB7IZolZk78
+https://ec2spotworkshops.com/karpenter/050_karpenter/consolidation.html
+https://karpenter.sh/preview/getting-started/getting-started-with-eksctl/
 
+```
 kubectl apply -f inflate.yaml
 !
 kubectl scale deployment inflate --replicas=60
 !
+kubectl scale deployment inflate --replicas=10
+!
 
+```
 
 ```
 https://github.com/awslabs/eks-node-viewer
 ```
+```
+Path: /home/ec2-user/go/bin/
 
+eks-node-viewer
+
+eks-node-viewer --nodeSelector "karpenter.sh/provisioner-name"
+
+eks-node-viewer --resources cpu,memory
+```
 
 
 
