@@ -1199,6 +1199,38 @@ load_balancer=$(kubectl get services mysql-read -o=jsonpath='{.status.loadBalanc
 kubectl run mysql-client-loop --image=mysql:5.7 -i -t --rm --restart=Never --\
   bash -ic "while sleep 1; do /usr/bin/mysql -h $load_balancer -e 'SELECT @@server_id'; done"
 
-
 ```
+
+Dashboard
+```
+cat << EOF > dashboard-admin.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard-admin
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dashboard-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: dashboard-admin
+  namespace: kubernetes-dashboard
+EOF
+```
+
+kubectl delete -f dashboard-admin.yaml # delete the default role binding
+kubectl create -f dashboard-admin.yaml
+
+kubectl -n kubernetes-dashboard create token dashboard-admin
+
+sudo kubectl port-forward -n kubernetes-dashboard --address 0.0.0.0 service/kubernetes-dashboard 8001:443
+
+
 
