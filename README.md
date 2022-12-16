@@ -745,6 +745,84 @@ eks-node-viewer --nodeSelector "karpenter.sh/provisioner-name"
 eks-node-viewer --resources cpu,memory
 ```
 
+### Deploying Applications in Kubernetres ###
+
+###Step by Step Guide
+
+###Deploy a Stateless Application in a Kubernetes Cluster
+The application runs in a client web browser and doesn't store any state across sessions
+
+1. Create a Deployment File
+2. Create a Service Resource File 
+3. [Optional] Scale Deployment (replicas) 
 
 
+kubectl create -f deployment.yml
+kubectl get deployment game-deployment
+kubectl describe deployment game-deployment
+kubectl get events | more
+kubectl get pods
+kubectl describe pods
+kubectl get pods -l app=game
+!
+
+```
+cat <<EOF > deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-deployment
+spec:
+  # tells deployment to run 1 pods matching the template
+  replicas: 1
+  # create pods using the pod definition in this template
+  selector:
+    matchLabels:
+      app: game
+  template:
+    metadata:
+      # name is automatically generated based on the deployment.name
+      labels:
+        app: game
+    spec:
+      containers:
+      - name: tetris
+        image: lrakai/tetris:latest
+        ports:
+        - containerPort: 80
+EOF
+```
+
+kubectl create -f service.yml
+kubectl describe services game
+ssh worker1 -o StrictHostKeyChecking=no "curl -s ifconfig.me; echo"
+
+```
+cat <<EOF > service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: game
+  labels:
+    app: game
+spec:
+  selector:
+    # Use labels to select the pods to route traffic to
+    app: game
+  ports:
+  - protocol: TCP
+    port: 80
+  # Allocate a port on each node in the cluster
+  type: NodePort
+EOF
+```
+
+Scaling 
+
+
+```
+sed -i 's/\(replicas: \).*/\12/' deployment.yml
+kubectl apply -f deployment.yml
+kubectl get pods -l app=game
+```
 
