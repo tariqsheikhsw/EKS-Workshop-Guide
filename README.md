@@ -1233,4 +1233,25 @@ kubectl -n kubernetes-dashboard create token dashboard-admin
 sudo kubectl port-forward -n kubernetes-dashboard --address 0.0.0.0 service/kubernetes-dashboard 8001:443
 
 
+### Deploying A Cloud Native Application into Kubernetes
+
+https://github.com/cloudacademy/voteapp-frontend-react
+https://github.com/cloudacademy/voteapp-api-go
+https://github.com/cloudacademy/voteapp-k8s
+
+### Kubernetes Resources
+
+List of Steps/Resources :
+
+1. Namespace
+2. Deployment/ReplicaSet
+3. Pod
+4. Service
+5. Ingress/Ingress Controller
+6. StatefulSet
+   >> Persistent Volume
+   >> Persistent Volume Claim
+   >> Headless Service
+7. NetworkPolicy
+
 
