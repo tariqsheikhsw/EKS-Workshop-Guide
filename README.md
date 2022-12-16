@@ -1255,3 +1255,245 @@ List of Steps/Resources :
 7. NetworkPolicy
 
 
+### Utilizing Ephemeral Volume Types in Kubernetes
+
+![image](https://assets.cloudacademy.com/bakery/media/uploads/laboratories/environment_end_images/after_13_xDySj4z.png)
+
+
+watch kubectl get nodes
+
+# Create namespace
+kubectl create namespace ephemeral
+# Set namespace as the default for the current context
+kubectl config set-context $(kubectl config current-context) --namespace=ephemeral
+
+Create POD 
+```
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: coin-toss
+spec:
+  containers:
+  - name: coin-toss
+    image: busybox:1.33.1
+    command: ["/bin/sh", "-c"]
+    args:
+    - >
+      while true;
+      do
+        # Record coint tosses
+        if [[ $(($RANDOM % 2)) -eq 0 ]]; then echo Heads; else echo Tails; fi >> /var/log/tosses.txt;
+        sleep 1;
+      done
+    # Mount the log directory /var/log using a volume
+    volumeMounts:
+    - name: varlog
+      mountPath: /var/log
+  # Declare log directory volume an emptyDir ephemeral volume
+  volumes:
+  - name: varlog
+    emptyDir: {}
+EOF
+```
+
+```
+pod_node=$(kubectl get pod coin-toss -o jsonpath='{.status.hostIP}')
+pod_id=$(kubectl get pod coin-toss -o jsonpath='{.metadata.uid}')
+ssh $pod_node -oStrictHostKeyChecking=no sudo ls /var/lib/kubelet/pods/$pod_id/volumes/kubernetes.io~empty-dir/varlog
+
+kubectl explain pod.spec.volumes.emptyDir
+
+kubectl exec coin-toss -- wc -l /var/log/tosses.txt
+
+kubectl set image pod coin-toss coin-toss=busybox:1.34.0
+kubectl get pods -w
+
+kubectl exec coin-toss -- wc -l /var/log/tosses.txt
+
+kubectl delete pod coin-toss
+
+ssh $pod_node -oStrictHostKeyChecking=no sudo ls /var/lib/kubelet/pods/$pod_id/volumes/kubernetes.io~empty-dir/varlog
+
+```
+POD using an emptyDir ephemeral volume for its data and requests and limits the Pod's total ephemeral storage (ephemeral-storage) to the very low value of 1 kibibyte (1Ki)
+
+```
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cache
+spec:
+  containers:
+  - name: cache
+    image: redis:6.2.5-alpine
+    resources:
+      requests:
+        ephemeral-storage: "1Ki"
+      limits:
+        ephemeral-storage: "1Ki"
+    volumeMounts:
+    - name: ephemeral
+      mountPath: "/data"
+  volumes:
+    - name: ephemeral
+      emptyDir:
+        sizeLimit: 1Ki
+EOF
+```
+```
+kubectl describe pod cache
+```
+
+
+### Implementing GitOps for Kubernetes in AWS
+
+https://assets.cloudacademy.com/bakery/media/uploads/laboratories/environment_end_images/rsz_end_4.png
+
+server.js 
+Dockerfile
+config.yaml
+
+CodePipeline
+- Source
+- Build
+- Deploy
+
+ The Source step listens for changes to the CodeCommit repository and triggers the pipeline. The Build step uses the Dockerfile you reviewed earlier to build a Docker image and push it to AWS ECR. Finally, the Deploy step logs into the host EC2 instance and deploys the new version of the application by pulling the ECR image
+ 
+ 
+
+```
+git config --global credential.helper '!aws codecommit credential-helper $@'
+git config --global credential.UseHttpPath true
+
+cd /cloudacademy/lab
+git add .
+git commit -m "Update the greeting"
+git push origin master
+
+```
+
+GitOps Practices
+
+After implementing GitOps with a tool called Flux, the configuration files for your Kubernetes application will be hosted in their own Git repository separate from that hosting your application code, and serve as the single source of truth for your Kubernetes configuration. Flux, the tool powering GitOps in your cluster, will listen for changes to this repository and update your cluster configuration as needed. It will also listen for changes to your ECR repository, and handle the automatic deployment of your application using Kubernetes principles you're already familiar with. Finally, it will write its own commits to the new configuration repository with updated information, which you will see more in-depth in this lab step. By the time you're done refactoring, the environment will look like this:
+
+https://assets.cloudacademy.com/bakery/media/uploads/blobid1-add2a031-97ff-4566-882b-c4b3ef53171c.png
+
+```
+sudo yum install -y socat
+kubectl -n kube-system create sa tiller
+kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+
+
+helm init --service-account tiller --history-max 200 --stable-repo-url https://charts.helm.sh/stable --tiller-image ghcr.io/helm/tiller:v2.16.1
+
+helm version
+
+
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/helm-0.10.1/deploy-helm/flux-helm-release-crd.yaml
+
+cd /cloudacademy
+origin_url=$(aws ec2 describe-instances \
+  --region us-west-2 \
+  --filters "Name=tag:Name,Values=K8s Config Remote" \
+  --query "Reservations[0].Instances[0].PublicDnsName" | sed 's/"\(.*\)"/git:\/\/\1\/lab.git/'
+)
+git clone $origin_url k8s-config
+
+helm repo add fluxcd https://charts.fluxcd.io
+helm upgrade -i flux \
+  --set helmOperator.create=true \
+  --set helmOperator.createCRD=false \
+  --set git.url=$origin_url \
+  --namespace flux fluxcd/flux
+
+
+kubectl get pods -n flux
+
+cd /cloudacademy/k8s-config
+mkdir namespaces workloads
+
+cat << EOF > namespaces/flux-example.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    name: flux-example
+  name: flux-example
+EOF
+
+aws sts get-caller-identity
+
+account_id=$(aws sts get-caller-identity --query "Account" | sed -e 's/^"//' -e 's/"$//')
+
+echo $account_id
+
+cat << EOF > workloads/flux-example-dep.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp1
+  namespace: flux-example
+  labels:
+    app: webapp1
+  annotations:
+  # Container Image Automated Updates
+    flux.weave.works/automated: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp1
+  template:
+    metadata:
+      labels:
+        app: webapp1
+    spec:
+      containers:
+      - name: webapp1
+        image: $account_id.dkr.ecr.us-west-2.amazonaws.com/web-app:1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          hostPort: 8000
+          name: http
+          protocol: TCP
+  strategy:
+    type: Recreate
+EOF
+
+git add .
+git commit -m "First commit"
+git push origin master
+
+
+kubectl logs flux-5b6c4779f-5c88d -n flux --follow | grep apply
+
+cd /cloudacademy/lab
+git add .
+git commit -m "Update the greeting"
+git push origin master
+
+cd /cloudacademy/k8s-config
+git pull
+
+cd /cloudacademy/k8s-config
+git add .
+git commit -m "Update the host port"
+git push origin master
+
+
+
+```
+
+
+
+
+
+
+
+
