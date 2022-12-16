@@ -1487,10 +1487,15 @@ git commit -m "Update the host port"
 git push origin master
 
 
-
 ```
 
+Next:
+=====
 
+
+https://cloudacademy.com/lab/istio-service-mesh-traffic-routing/
+https://cloudacademy.com/lab/securing-kubernetes-cluster-using-authorization-authentication/?context_resource=lp&context_id=242
+https://cloudacademy.com/lab/backup-restore-and-upgrade-kubernetes-cluster/
 
 
 
